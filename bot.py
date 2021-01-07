@@ -15,7 +15,8 @@ from aiogram.types import ReplyKeyboardRemove, \
     InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 import json
-
+'''import os
+PORT = int(os.environ.get('PORT', 5000))'''
 
 TOKEN = "1247499663:AAFFw-slKx3ydhOvc7cwPHC50ZkJTvllmB4"
 
