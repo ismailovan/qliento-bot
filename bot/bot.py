@@ -1,29 +1,38 @@
-import asyncio
 import logging
+import asyncio
 
-from aiogram import Bot, types
-from aiogram.utils import executor
-from aiogram.utils.emoji import emojize
-from aiogram.dispatcher import Dispatcher
 from aiogram.types.message import ContentType
 from aiogram.utils.markdown import text, bold, italic, code, pre
 from aiogram.types import ParseMode, InputMediaPhoto, InputMediaVideo, ChatActions
 import kb
-from aiogram.dispatcher import Dispatcher
+
 from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 import json
-'''import os
-PORT = int(os.environ.get('PORT', 5000))'''
 
-TOKEN = "1247499663:AAFFw-slKx3ydhOvc7cwPHC50ZkJTvllmB4"
 
-bot = Bot(token=TOKEN)
+from aiogram import Bot, types
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.dispatcher import Dispatcher
+from aiogram.utils.executor import start_webhook
+from bot.settings import (BOT_TOKEN, HEROKU_APP_NAME,
+                          WEBHOOK_URL, WEBHOOK_PATH,
+                          WEBAPP_HOST, WEBAPP_PORT)
+
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
+dp.middleware.setup(LoggingMiddleware())
 
 
+
+
+
+async def on_startup(dp):
+    logging.warning(
+        'Starting connection. ')
+    await bot.set_webhook(WEBHOOK_URL,drop_pending_updates=True)
 
 @dp.message_handler(commands=['новость'])
 async def process_help_command(message: types.Message):
@@ -71,24 +80,35 @@ async def process_help_command(message: types.Message):
 
 @dp.message_handler()
 async def echo(message: types.Message):
-	url = 'https://back.qliento.com/researches/?name__icontains=' + message.text
-	r = requests.get(url)
-	data = json.loads(r.text)
+    url = 'https://back.qliento.com/researches/?name__icontains=' + message.text
+    r = requests.get(url)
+    data = json.loads(r.text)
 
-	if len(data) != 0:
-		inline_kb = []
-		inline_kb_full = InlineKeyboardMarkup(row_width=2)
-		for research in data:
-			msg = research['name']
-			url = 'https://back.qliento.com/researches/' + str(research['id'])
-			inline = InlineKeyboardButton(research['name'],url=url)
-			inline_kb_full.add(inline)
-		await message.answer('Вот, что мне удалось найти: ', reply_markup=inline_kb_full)
-	else:
-		await message.answer('К сожалению, ничего не нашлось. Закажите ваше персональное исследование у нас на сайте:\nhttps://www.qliento.com/order-research')
-
-
+    if len(data) != 0:
+        inline_kb = []
+        inline_kb_full = InlineKeyboardMarkup(row_width=2)
+        for research in data:
+            msg = research['name']
+            url = 'https://back.qliento.com/researches/' + str(research['id'])
+            inline = InlineKeyboardButton(research['name'],url=url)
+            inline_kb_full.add(inline)
+        await message.answer('Вот, что мне удалось найти: ', reply_markup=inline_kb_full)
+    else:
+        await message.answer('К сожалению, ничего не нашлось. Закажите ваше персональное исследование у нас на сайте:\nhttps://www.qliento.com/order-research')
 
 
-if __name__ == '__main__':
-    executor.start_polling(dp)
+
+async def on_shutdown(dp):
+    logging.warning('Bye! Shutting down webhook connection')
+
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+    start_webhook(
+        dispatcher=dp,
+        webhook_path=WEBHOOK_PATH,
+        skip_updates=True,
+        on_startup=on_startup,
+        host=WEBAPP_HOST,
+        port=WEBAPP_PORT,
+    )
